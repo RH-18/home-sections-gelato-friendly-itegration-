@@ -110,27 +110,50 @@ if (typeof HomeScreenSectionsHandler == 'undefined') {
                 return;
             }
 
-            sessionStorage.setItem(DISCOVER_SEARCH_QUERY_KEY, title);
+            var trimmedTitle = title.trim();
+            if (!trimmedTitle) {
+                return;
+            }
 
-            var searchUrl = HomeScreenSectionsHandler.getSearchPageUrl();
+            sessionStorage.setItem(DISCOVER_SEARCH_QUERY_KEY, trimmedTitle);
+
+            var searchUrl = HomeScreenSectionsHandler.getSearchPageUrl(trimmedTitle);
+
+            if (!searchUrl) {
+                return;
+            }
 
             if (HomeScreenSectionsHandler.isOnSearchPage()) {
-                setTimeout(function () {
-                    HomeScreenSectionsHandler.applyStoredSearchQueryIfNeeded();
-                }, 50);
-            } else if (searchUrl) {
+                if (window.location.href !== searchUrl) {
+                    window.location.href = searchUrl;
+                } else {
+                    setTimeout(function () {
+                        HomeScreenSectionsHandler.applyStoredSearchQueryIfNeeded();
+                    }, 50);
+                }
+            } else {
                 window.location.href = searchUrl;
             }
         },
-        getSearchPageUrl: function() {
+        getSearchPageUrl: function(query) {
             var currentHref = window.location.href || '';
             var webIndex = currentHref.indexOf('/web/');
+            var basePath;
 
             if (webIndex !== -1) {
-                return currentHref.substring(0, webIndex + 5) + '#/search';
+                basePath = currentHref.substring(0, webIndex + 5) + '#/search';
+            } else {
+                basePath = '/web/#/search';
             }
 
-            return '/web/#/search';
+            if (!query) {
+                return basePath;
+            }
+
+            return basePath + '?query=' + HomeScreenSectionsHandler.encodeQueryForSearch(query);
+        },
+        encodeQueryForSearch: function(query) {
+            return encodeURIComponent(query).replace(/%20/g, '+');
         },
         isOnSearchPage: function() {
             if (!window.location || !window.location.hash) {
