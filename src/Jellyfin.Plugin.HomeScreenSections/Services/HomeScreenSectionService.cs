@@ -1,4 +1,7 @@
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using Jellyfin.Extensions;
 using Jellyfin.Plugin.HomeScreenSections.Configuration;
 using Jellyfin.Plugin.HomeScreenSections.Helpers;
@@ -67,8 +70,7 @@ public class HomeScreenSectionService
                     SectionSettings? sectionSettings = HomeScreenSectionsPlugin.Instance.Configuration.SectionSettings.FirstOrDefault(x =>
                         x.SectionId == sectionType.Section);
 
-                    Random rnd = new Random();
-                    int instanceCount = rnd.Next(sectionSettings?.LowerLimit ?? 0, sectionSettings?.UpperLimit ?? sectionType.Limit ?? 1);
+                    int instanceCount = GetInstanceCount(sectionType, sectionSettings);
 
                     for (int i = 0; i < instanceCount; ++i)
                     {
@@ -102,9 +104,7 @@ public class HomeScreenSectionService
                 {
                     if (sectionType.Limit > 1)
                     {
-                        Random rnd = new Random();
-                        int instanceCount = rnd.Next(sectionSettings?.LowerLimit ?? 0,
-                            sectionSettings?.UpperLimit ?? sectionType.Limit ?? 1);
+                        int instanceCount = GetInstanceCount(sectionType, sectionSettings);
 
                         for (int i = 0; i < instanceCount; ++i)
                         {
@@ -148,8 +148,31 @@ public class HomeScreenSectionService
 
                 info.DisplayText = translatedResult;
             }
-            
+
             return info;
         }).ToList();
+    }
+
+    private static int GetInstanceCount(IHomeScreenSection sectionType, SectionSettings? sectionSettings)
+    {
+        int defaultLimit = sectionType.Limit ?? 1;
+
+        if (string.Equals(sectionType.Section, "Genre", StringComparison.OrdinalIgnoreCase))
+        {
+            return defaultLimit;
+        }
+
+        int lowerLimit = sectionSettings?.LowerLimit ?? 0;
+        int upperLimit = sectionSettings?.UpperLimit ?? defaultLimit;
+
+        lowerLimit = Math.Max(0, lowerLimit);
+
+        if (upperLimit <= lowerLimit)
+        {
+            return Math.Max(upperLimit, 0);
+        }
+
+        Random rnd = new Random();
+        return rnd.Next(lowerLimit, upperLimit);
     }
 }
