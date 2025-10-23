@@ -4,6 +4,8 @@ using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using Jellyfin.Plugin.HomeScreenSections;
+using Jellyfin.Plugin.HomeScreenSections.Configuration;
+using Jellyfin.Plugin.HomeScreenSections.Library;
 using Jellyfin.Plugin.HomeScreenSections.Model.Dto;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Dto;
