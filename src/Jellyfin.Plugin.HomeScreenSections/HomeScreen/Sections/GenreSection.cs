@@ -9,7 +9,6 @@ using Jellyfin.Plugin.HomeScreenSections.Library;
 using Jellyfin.Plugin.HomeScreenSections.Model.Dto;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Dto;
-using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json.Linq;
 
@@ -85,6 +84,20 @@ public class GenreSection : IHomeScreenSection
         if (string.IsNullOrEmpty(jellyseerrUrl) || string.IsNullOrEmpty(jellyseerrApiKey))
         {
             return new MediaBrowser.Model.Querying.QueryResult<BaseItemDto>();
+        }
+
+        GenreCategory? category = s_genreCategories.FirstOrDefault(x => string.Equals(x.Key, payload.AdditionalData, StringComparison.OrdinalIgnoreCase));
+        if (category == null)
+        {
+            return new QueryResult<BaseItemDto>();
+        }
+
+        string? jellyseerrUrl = HomeScreenSectionsPlugin.Instance.Configuration.JellyseerrUrl;
+        string? jellyseerrApiKey = HomeScreenSectionsPlugin.Instance.Configuration.JellyseerrApiKey;
+
+        if (string.IsNullOrEmpty(jellyseerrUrl) || string.IsNullOrEmpty(jellyseerrApiKey))
+        {
+            return new QueryResult<BaseItemDto>();
         }
 
         User? user = m_userManager.GetUserById(payload.UserId);
