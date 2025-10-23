@@ -63,48 +63,73 @@ namespace Jellyfin.Plugin.HomeScreenSections.HomeScreen.Sections
 
             // Make the API call to discover and get the 20 results
             int page = 1;
-            do 
+            bool hasMoreResults = true;
+
+            do
             {
                 HttpResponseMessage discoverResponse = client.GetAsync(BuildDiscoverRequestPath(page)).GetAwaiter().GetResult();
 
-                if (discoverResponse.IsSuccessStatusCode)
+                if (!discoverResponse.IsSuccessStatusCode)
                 {
-                    string jsonRaw = discoverResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-                    JObject? jsonResponse = JObject.Parse(jsonRaw);
+                    break;
+                }
 
-                    if (jsonResponse != null)
+                string jsonRaw = discoverResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                JObject? jsonResponse = JObject.Parse(jsonRaw);
+
+                if (jsonResponse == null)
+                {
+                    break;
+                }
+
+                JArray? resultsArray = jsonResponse.Value<JArray>("results");
+
+                if (resultsArray == null)
+                {
+                    hasMoreResults = false;
+                    break;
+                }
+
+                List<JObject> results = resultsArray
+                    .OfType<JObject>()
+                    .Where(x => !x.Value<bool>("adult"))
+                    .ToList();
+
+                if (results.Count == 0)
+                {
+                    hasMoreResults = false;
+                    break;
+                }
+
+                foreach (JObject item in results)
+                {
+                    if (!string.IsNullOrEmpty(HomeScreenSectionsPlugin.Instance.Configuration.JellyseerrPreferredLanguages) &&
+                        !HomeScreenSectionsPlugin.Instance.Configuration.JellyseerrPreferredLanguages.Split(',')
+                            .Select(x => x.Trim()).Contains(item.Value<string>("originalLanguage")))
                     {
-                        foreach (JObject item in jsonResponse.Value<JArray>("results")!.OfType<JObject>().Where(x => !x.Value<bool>("adult")))
+                        continue;
+                    }
+
+                    if (item.Value<JObject>("mediaInfo") == null)
+                    {
+                        returnItems.Add(new BaseItemDto()
                         {
-                            if (!string.IsNullOrEmpty(HomeScreenSectionsPlugin.Instance.Configuration.JellyseerrPreferredLanguages) && 
-                                !HomeScreenSectionsPlugin.Instance.Configuration.JellyseerrPreferredLanguages.Split(',')
-                                    .Select(x => x.Trim()).Contains(item.Value<string>("originalLanguage")))
+                            Name = item.Value<string>("title") ?? item.Value<string>("name"),
+                            OriginalTitle = item.Value<string>("originalTitle") ?? item.Value<string>("originalName"),
+                            SourceType = item.Value<string>("mediaType"),
+                            ProviderIds = new Dictionary<string, string>()
                             {
-                                continue;
-                            }
-                            
-                            if (item.Value<JObject>("mediaInfo") == null)
-                            {
-                                returnItems.Add(new BaseItemDto()
-                                {
-                                    Name = item.Value<string>("title") ?? item.Value<string>("name"),
-                                    OriginalTitle = item.Value<string>("originalTitle") ?? item.Value<string>("originalName"),
-                                    SourceType = item.Value<string>("mediaType"),
-                                    ProviderIds = new Dictionary<string, string>()
-                                    {
-                                        { "JellyseerrRoot", jellyseerrUrl },
-                                        { "Jellyseerr", item.Value<int>("id").ToString() },
-                                        { "JellyseerrPoster", item.Value<string>("posterPath") ?? "404" }
-                                    },
-                                    PremiereDate = DateTime.Parse(item.Value<string>("firstAirDate") ?? item.Value<string>("releaseDate") ?? "1970-01-01")
-                                });
-                            }
-                        }
+                                { "JellyseerrRoot", jellyseerrUrl },
+                                { "Jellyseerr", item.Value<int>("id").ToString() },
+                                { "JellyseerrPoster", item.Value<string>("posterPath") ?? "404" }
+                            },
+                            PremiereDate = DateTime.Parse(item.Value<string>("firstAirDate") ?? item.Value<string>("releaseDate") ?? "1970-01-01")
+                        });
                     }
                 }
 
                 page++;
-            } while (returnItems.Count < 20);
+            } while (returnItems.Count < 20 && hasMoreResults);
             return new QueryResult<BaseItemDto>()
             {
                 Items = returnItems,
