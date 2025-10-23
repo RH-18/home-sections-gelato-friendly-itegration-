@@ -9,6 +9,7 @@ using Jellyfin.Plugin.HomeScreenSections.Library;
 using Jellyfin.Plugin.HomeScreenSections.Model.Dto;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Dto;
+using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json.Linq;
 
