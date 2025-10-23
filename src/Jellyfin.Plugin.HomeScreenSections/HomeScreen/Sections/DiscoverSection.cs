@@ -1,4 +1,5 @@
-﻿using System.Net.Http.Json;
+﻿using System.Collections.Generic;
+using System.Net.Http.Json;
 using Jellyfin.Plugin.HomeScreenSections.Configuration;
 using Jellyfin.Plugin.HomeScreenSections.Library;
 using Jellyfin.Plugin.HomeScreenSections.Model.Dto;
@@ -23,6 +24,8 @@ namespace Jellyfin.Plugin.HomeScreenSections.HomeScreen.Sections
         public object? OriginalPayload { get; } = null;
 
         protected virtual string JellyseerEndpoint => "/api/v1/discover/trending";
+
+        protected virtual IReadOnlyDictionary<string, string>? JellyseerParameters => null;
         
         public DiscoverSection(IUserManager userManager)
         {
@@ -62,7 +65,7 @@ namespace Jellyfin.Plugin.HomeScreenSections.HomeScreen.Sections
             int page = 1;
             do 
             {
-                HttpResponseMessage discoverResponse = client.GetAsync($"{JellyseerEndpoint}?page={page}").GetAwaiter().GetResult();
+                HttpResponseMessage discoverResponse = client.GetAsync(BuildDiscoverRequestPath(page)).GetAwaiter().GetResult();
 
                 if (discoverResponse.IsSuccessStatusCode)
                 {
@@ -113,6 +116,24 @@ namespace Jellyfin.Plugin.HomeScreenSections.HomeScreen.Sections
         public IHomeScreenSection CreateInstance(Guid? userId, IEnumerable<IHomeScreenSection>? otherInstances = null)
         {
             return this;
+        }
+
+        private string BuildDiscoverRequestPath(int page)
+        {
+            List<string> querySegments = new List<string>()
+            {
+                $"page={page}"
+            };
+
+            if (JellyseerParameters != null)
+            {
+                foreach (KeyValuePair<string, string> parameter in JellyseerParameters)
+                {
+                    querySegments.Add($"{parameter.Key}={Uri.EscapeDataString(parameter.Value)}");
+                }
+            }
+
+            return $"{JellyseerEndpoint}?{string.Join('&', querySegments)}";
         }
 
         public HomeScreenSectionInfo GetInfo()
