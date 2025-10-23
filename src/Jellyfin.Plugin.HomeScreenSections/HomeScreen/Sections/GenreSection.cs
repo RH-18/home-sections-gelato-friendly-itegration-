@@ -65,68 +65,57 @@ public class GenreSection : IHomeScreenSection
         m_userManager = userManager;
     }
 
-    public MediaBrowser.Model.Querying.QueryResult<BaseItemDto> GetResults(HomeScreenSectionPayload payload, IQueryCollection queryCollection)
+    public QueryResult<BaseItemDto> GetResults(HomeScreenSectionPayload payload, IQueryCollection queryCollection)
     {
-        if (payload.AdditionalData == null)
+        string? categoryKey = payload.AdditionalData;
+        if (string.IsNullOrEmpty(categoryKey))
         {
-            return new MediaBrowser.Model.Querying.QueryResult<BaseItemDto>();
+            return CreateEmptyResult();
         }
 
-        GenreCategory? category = s_genreCategories.FirstOrDefault(x => string.Equals(x.Key, payload.AdditionalData, StringComparison.OrdinalIgnoreCase));
-        if (category == null)
+        GenreCategory? selectedCategory = s_genreCategories
+            .FirstOrDefault(category => string.Equals(category.Key, categoryKey, StringComparison.OrdinalIgnoreCase));
+
+        if (selectedCategory == null)
         {
-            return new MediaBrowser.Model.Querying.QueryResult<BaseItemDto>();
+            return CreateEmptyResult();
         }
 
-        string? jellyseerrUrl = HomeScreenSectionsPlugin.Instance.Configuration.JellyseerrUrl;
+        string? jellyseerrBaseUrl = HomeScreenSectionsPlugin.Instance.Configuration.JellyseerrUrl;
         string? jellyseerrApiKey = HomeScreenSectionsPlugin.Instance.Configuration.JellyseerrApiKey;
 
-        if (string.IsNullOrEmpty(jellyseerrUrl) || string.IsNullOrEmpty(jellyseerrApiKey))
+        if (string.IsNullOrEmpty(jellyseerrBaseUrl) || string.IsNullOrEmpty(jellyseerrApiKey))
         {
-            return new MediaBrowser.Model.Querying.QueryResult<BaseItemDto>();
-        }
-
-        GenreCategory? category = s_genreCategories.FirstOrDefault(x => string.Equals(x.Key, payload.AdditionalData, StringComparison.OrdinalIgnoreCase));
-        if (category == null)
-        {
-            return new QueryResult<BaseItemDto>();
-        }
-
-        string? jellyseerrUrl = HomeScreenSectionsPlugin.Instance.Configuration.JellyseerrUrl;
-        string? jellyseerrApiKey = HomeScreenSectionsPlugin.Instance.Configuration.JellyseerrApiKey;
-
-        if (string.IsNullOrEmpty(jellyseerrUrl) || string.IsNullOrEmpty(jellyseerrApiKey))
-        {
-            return new QueryResult<BaseItemDto>();
+            return CreateEmptyResult();
         }
 
         User? user = m_userManager.GetUserById(payload.UserId);
-        if (user == null || string.IsNullOrEmpty(user.Username))
+        if (user?.Username == null)
         {
-            return new MediaBrowser.Model.Querying.QueryResult<BaseItemDto>();
+            return CreateEmptyResult();
         }
 
-        using HttpClient client = new HttpClient
+        using HttpClient httpClient = new HttpClient
         {
-            BaseAddress = new Uri(jellyseerrUrl)
+            BaseAddress = new Uri(jellyseerrBaseUrl)
         };
 
-        client.DefaultRequestHeaders.Add("X-Api-Key", jellyseerrApiKey);
+        httpClient.DefaultRequestHeaders.Add("X-Api-Key", jellyseerrApiKey);
 
-        int? jellyseerrUserId = GetJellyseerrUserId(client, user.Username);
-        if (jellyseerrUserId == null)
+        int? jellyseerrUserId = GetJellyseerrUserId(httpClient, user.Username);
+        if (!jellyseerrUserId.HasValue)
         {
-            return new MediaBrowser.Model.Querying.QueryResult<BaseItemDto>();
+            return CreateEmptyResult();
         }
 
-        client.DefaultRequestHeaders.Add("X-Api-User", jellyseerrUserId.Value.ToString(CultureInfo.InvariantCulture));
+        httpClient.DefaultRequestHeaders.Add("X-Api-User", jellyseerrUserId.Value.ToString(CultureInfo.InvariantCulture));
 
         string[] preferredLanguages = (HomeScreenSectionsPlugin.Instance.Configuration.JellyseerrPreferredLanguages ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        List<BaseItemDto> items = GetCategoryItems(client, category, preferredLanguages, jellyseerrUrl);
+        List<BaseItemDto> items = GetCategoryItems(httpClient, selectedCategory, preferredLanguages, jellyseerrBaseUrl);
 
-        return new MediaBrowser.Model.Querying.QueryResult<BaseItemDto>
+        return new QueryResult<BaseItemDto>
         {
             Items = items,
             StartIndex = 0,
@@ -136,30 +125,31 @@ public class GenreSection : IHomeScreenSection
 
     public IHomeScreenSection CreateInstance(Guid? userId, IEnumerable<IHomeScreenSection>? otherInstances = null)
     {
-        HashSet<string> usedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        string? nextCategoryKey = GetNextCategoryKey(otherInstances);
 
-        if (otherInstances != null)
+        if (nextCategoryKey == null)
         {
-            foreach (IHomeScreenSection instance in otherInstances)
+            return new GenreSection(m_userManager)
             {
-                if (!string.IsNullOrEmpty(instance?.AdditionalData))
-                {
-                    usedKeys.Add(instance.AdditionalData);
-                }
-            }
+                DisplayText = DisplayText
+            };
         }
 
-        GenreCategory? nextCategory = s_genreCategories.FirstOrDefault(category => !usedKeys.Contains(category.Key));
+        GenreCategory? category = s_genreCategories
+            .FirstOrDefault(candidate => string.Equals(candidate.Key, nextCategoryKey, StringComparison.OrdinalIgnoreCase));
 
-        if (nextCategory == null)
+        if (category == null)
         {
-            return null!;
+            return new GenreSection(m_userManager)
+            {
+                DisplayText = DisplayText
+            };
         }
 
         return new GenreSection(m_userManager)
         {
-            AdditionalData = nextCategory.Key,
-            DisplayText = nextCategory.Name
+            AdditionalData = category.Key,
+            DisplayText = category.Name
         };
     }
 
@@ -266,7 +256,6 @@ public class GenreSection : IHomeScreenSection
                 {
                     break;
                 }
-            }
 
             if (items.Count >= c_itemsPerSection)
             {
@@ -325,6 +314,39 @@ public class GenreSection : IHomeScreenSection
         }
 
         return normalized + separator + "page=" + page.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static QueryResult<BaseItemDto> CreateEmptyResult()
+    {
+        return new QueryResult<BaseItemDto>
+        {
+            Items = new List<BaseItemDto>(),
+            StartIndex = 0,
+            TotalRecordCount = 0
+        };
+    }
+
+    private string? GetNextCategoryKey(IEnumerable<IHomeScreenSection>? otherInstances)
+    {
+        HashSet<string> usedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrEmpty(AdditionalData))
+        {
+            usedKeys.Add(AdditionalData);
+        }
+
+        if (otherInstances != null)
+        {
+            foreach (IHomeScreenSection? section in otherInstances)
+            {
+                if (!string.IsNullOrEmpty(section?.AdditionalData))
+                {
+                    usedKeys.Add(section.AdditionalData);
+                }
+            }
+        }
+
+        return s_genreCategories.FirstOrDefault(category => !usedKeys.Contains(category.Key))?.Key;
     }
 
     private sealed record GenreCategory(string Key, string Name, string Endpoint, string DefaultMediaType);
