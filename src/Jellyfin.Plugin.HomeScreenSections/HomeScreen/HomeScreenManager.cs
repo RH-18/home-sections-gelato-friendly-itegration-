@@ -67,7 +67,36 @@ namespace Jellyfin.Plugin.HomeScreenSections.HomeScreen
             RegisterResultsDelegate<DiscoverSection>();
             RegisterResultsDelegate<DiscoverMoviesSection>();
             RegisterResultsDelegate<DiscoverTvSection>();
-            
+            RegisterResultsDelegate<DiscoverTrendingHighRatedSection>();
+            RegisterResultsDelegate<DiscoverPopularMoviesHighRatedSection>();
+            RegisterResultsDelegate<DiscoverPopularTvHighRatedSection>();
+            RegisterResultsDelegate<DiscoverMoviesActionHighRatedSection>();
+            RegisterResultsDelegate<DiscoverMoviesAdventureHighRatedSection>();
+            RegisterResultsDelegate<DiscoverTvActionAdventureHighRatedSection>();
+            RegisterResultsDelegate<DiscoverMoviesThrillerHighRatedSection>();
+            RegisterResultsDelegate<DiscoverMoviesMysteryHighRatedSection>();
+            RegisterResultsDelegate<DiscoverTvMysteryHighRatedSection>();
+            RegisterResultsDelegate<DiscoverMoviesCrimeHighRatedSection>();
+            RegisterResultsDelegate<DiscoverTvCrimeHighRatedSection>();
+            RegisterResultsDelegate<DiscoverMoviesFamilyHighRatedSection>();
+            RegisterResultsDelegate<DiscoverTvFamilyHighRatedSection>();
+            RegisterResultsDelegate<DiscoverTvKidsHighRatedSection>();
+            RegisterResultsDelegate<DiscoverMoviesAnimationHighRatedSection>();
+            RegisterResultsDelegate<DiscoverTvAnimationHighRatedSection>();
+            RegisterResultsDelegate<DiscoverMoviesRomanceHighRatedSection>();
+            RegisterResultsDelegate<DiscoverMoviesComedyHighRatedSection>();
+            RegisterResultsDelegate<DiscoverTvComedyHighRatedSection>();
+            RegisterResultsDelegate<DiscoverMoviesDramaHighRatedSection>();
+            RegisterResultsDelegate<DiscoverTvDramaHighRatedSection>();
+            RegisterResultsDelegate<DiscoverMoviesHorrorHighRatedSection>();
+            RegisterResultsDelegate<DiscoverMoviesScienceFictionHighRatedSection>();
+            RegisterResultsDelegate<DiscoverMoviesFantasyHighRatedSection>();
+            RegisterResultsDelegate<DiscoverTvSciFiFantasyHighRatedSection>();
+            RegisterResultsDelegate<DiscoverMoviesHistoryHighRatedSection>();
+            RegisterResultsDelegate<DiscoverMoviesWarHighRatedSection>();
+            RegisterResultsDelegate<DiscoverTvWarPoliticsHighRatedSection>();
+            RegisterResultsDelegate<DiscoverTvSoapHighRatedSection>();
+
             RegisterResultsDelegate<UpcomingShowsSection>();
             RegisterResultsDelegate<UpcomingMoviesSection>();
             RegisterResultsDelegate<UpcomingMusicSection>();
