@@ -65,11 +65,25 @@ public class GenreSection : IHomeScreenSection
         m_userManager = userManager;
     }
 
-    public QueryResult<BaseItemDto> GetResults(HomeScreenSectionPayload payload, IQueryCollection queryCollection)
+    public MediaBrowser.Model.Querying.QueryResult<BaseItemDto> GetResults(HomeScreenSectionPayload payload, IQueryCollection queryCollection)
     {
         if (payload.AdditionalData == null)
         {
-            return new QueryResult<BaseItemDto>();
+            return new MediaBrowser.Model.Querying.QueryResult<BaseItemDto>();
+        }
+
+        GenreCategory? category = s_genreCategories.FirstOrDefault(x => string.Equals(x.Key, payload.AdditionalData, StringComparison.OrdinalIgnoreCase));
+        if (category == null)
+        {
+            return new MediaBrowser.Model.Querying.QueryResult<BaseItemDto>();
+        }
+
+        string? jellyseerrUrl = HomeScreenSectionsPlugin.Instance.Configuration.JellyseerrUrl;
+        string? jellyseerrApiKey = HomeScreenSectionsPlugin.Instance.Configuration.JellyseerrApiKey;
+
+        if (string.IsNullOrEmpty(jellyseerrUrl) || string.IsNullOrEmpty(jellyseerrApiKey))
+        {
+            return new MediaBrowser.Model.Querying.QueryResult<BaseItemDto>();
         }
 
         GenreCategory? category = s_genreCategories.FirstOrDefault(x => string.Equals(x.Key, payload.AdditionalData, StringComparison.OrdinalIgnoreCase));
@@ -89,7 +103,7 @@ public class GenreSection : IHomeScreenSection
         User? user = m_userManager.GetUserById(payload.UserId);
         if (user == null || string.IsNullOrEmpty(user.Username))
         {
-            return new QueryResult<BaseItemDto>();
+            return new MediaBrowser.Model.Querying.QueryResult<BaseItemDto>();
         }
 
         using HttpClient client = new HttpClient
@@ -102,7 +116,7 @@ public class GenreSection : IHomeScreenSection
         int? jellyseerrUserId = GetJellyseerrUserId(client, user.Username);
         if (jellyseerrUserId == null)
         {
-            return new QueryResult<BaseItemDto>();
+            return new MediaBrowser.Model.Querying.QueryResult<BaseItemDto>();
         }
 
         client.DefaultRequestHeaders.Add("X-Api-User", jellyseerrUserId.Value.ToString(CultureInfo.InvariantCulture));
@@ -112,7 +126,7 @@ public class GenreSection : IHomeScreenSection
 
         List<BaseItemDto> items = GetCategoryItems(client, category, preferredLanguages, jellyseerrUrl);
 
-        return new QueryResult<BaseItemDto>
+        return new MediaBrowser.Model.Querying.QueryResult<BaseItemDto>
         {
             Items = items,
             StartIndex = 0,
