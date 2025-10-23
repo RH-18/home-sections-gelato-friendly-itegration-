@@ -256,6 +256,7 @@ public class GenreSection : IHomeScreenSection
                 {
                     break;
                 }
+            }
 
             if (items.Count >= c_itemsPerSection)
             {
